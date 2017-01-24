@@ -10,9 +10,28 @@ from deap import tools
 flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
 
-#Chromosome properties
+#Genome properties
 
-class Chromosome:
+class Potential:
+	def __init__(self,eps,sig,cut=2.5):
+		self.eps = eps
+		self.sig = sig
+
+class Ligand:
+	def __init__(self,rad,ang,pot,mass=0.01):
+		self.rad = rad
+		self.ang = ang
+		self.pot = pot
+		self.mass = mass
+
+class Protein:
+	ligands=[]
+	def __init__(self,x=0,y=0,mass=1):
+		self.x = x
+		self.y = y
+		self.mass = mass
+
+class Genome:
 
 	def __init__(self,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,ljNum=4,ligNum=6):
 		self.ljEpsPlaces = ljEpsPlaces
@@ -31,13 +50,13 @@ class Chromosome:
 
 class Algorithm:
 
-	def __init__(self,chromosome=Chromosome(),mutationRate=0.1):
+	def __init__(self,genome=Genome(),mutationRate=0.1):
 
-		self.chromosome = chromosome
+		self.genome = genome
 		self.toolbox = base.Toolbox()
 		self.toolbox.register("bit", random.randint,0,1)
 		self.toolbox.register("individual", tools.initRepeat, creator.Individual,
-						 self.toolbox.bit, n=self.chromosome.size)
+						 self.toolbox.bit, n=self.genome.size)
 		self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
 		self.toolbox.register("mate", tools.cxTwoPoint)
@@ -107,8 +126,8 @@ class State:
 		creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 		creator.create("Individual", list, fitness=creator.FitnessMin)
 
-	def registerInstance(self,chromosome = Chromosome(),mutationRate=0.1):
-		self.instances.append(Algorithm(chromosome,mutationRate))
+	def registerInstance(self,genome = Genome(),mutationRate=0.1):
+		self.instances.append(Algorithm(genome,mutationRate))
 
 	def run(self,popSize=10,crossPb=0.5,mutPb=0.5,nGen=100):
 		for i in self.instances:
@@ -118,7 +137,7 @@ class State:
 def main():
 
 	state = State()
-	state.registerInstance(Chromosome(6,6,6,6,4,6),0.1)
+	state.registerInstance(Genome(6,6,6,6,4,6),0.1)
 	state.run(10,0.5,0.5,100)
 
 if __name__ == "__main__":
