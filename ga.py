@@ -13,11 +13,17 @@ from deap import algorithms
 flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
 
-#Genome properties
-
+def grayToNumber(g):
+	b=[g[0]]
+	for i in range(len(g)-1):
+		b.append(b[i]^g[i+1])
+	out = 0
+	for bit in b:
+		out = (out << 1) | bit
+	return out
 
 class Ligand:
-	def __init__(self,rad,ang,eps,sig,mass=0.01,cutoff=2.5):
+	def __init__(self,eps,sig,rad,ang,mass=0.01,cutoff=2.5):
 		self.rad = rad
 		self.ang = ang
 		self.eps = eps
@@ -31,7 +37,7 @@ class Ligand:
 		return ligstr
 
 class Protein:
-	ligands=[]
+	ligands = []
 	def __init__(self,x=0,y=0,mass=1,eps=1,sig=4,cutoff=2**(1/6)):
 		self.x = x
 		self.y = y
@@ -39,6 +45,7 @@ class Protein:
 		self.eps = eps
 		self.sig = sig
 		self.cutoff = cutoff
+		self.ligands=[]
 
 	def addLigand(self,ligand):
 		if(isinstance(ligand,Ligand)):
@@ -56,19 +63,35 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=20,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
 		self.ligAngPlaces = ligAngPlaces
 		self.geneSize = ljEpsPlaces+ljSigmaPlaces+ligRadPlaces+ligAngPlaces
+		self.genes = genes
+		self.size = genes*self.geneSize		
 
-		self.size = genes*self.geneSize
+	def constructProtein(self,individual):
+		p = Protein()
+		for i in range(self.genes):
+			gPos = self.geneSize*i
+			gStart,gEnd = gPos,gPos + self.ljEpsPlaces
+			eps = grayToNumber(individual[gStart:gEnd])
+			gStart,gEnd = gEnd+1,gEnd + 1 + self.ljSigmaPlaces
+			sig = grayToNumber(individual[gStart:gEnd])
+			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligRadPlaces
+			rad = grayToNumber(individual[gStart:gEnd])
+			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligAngPlaces
+			ang = grayToNumber(individual[gStart:gEnd])
+			p.addLigand(Ligand(eps,sig,rad,ang))
+
+		return p
 
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=1):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -85,7 +108,12 @@ class Algorithm:
 		self.hof = tools.HallOfFame(hofSize)
 
 	def evaluate(self,individual):
-		return sum(individual),
+		p = self.genome.constructProtein(individual)
+		rsum = 0
+		for l in p.ligands:
+			rsum += l.rad
+
+		return 1.0/rsum,
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
@@ -112,6 +140,9 @@ class Algorithm:
 			sys.stdout = orig_stdout
 			logfile.close()
 
+		for i in self.hof:
+			print self.genome.constructProtein(i)
+
 		return pop
 
 
@@ -131,7 +162,7 @@ class State:
 	def run(self,popSize=100,crossPb=0.5,mutPb=0.2,nGen=100):
 		self.populations = []
 		for i in self.instances:
-			self.populations.append(i.run(popSize,crossPb,mutPb,nGen))
+			self.populations.append(i.run(popSize,crossPb,mutPb,nGen,False))
 		return self.populations
 
 def main():
