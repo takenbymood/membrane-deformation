@@ -2,10 +2,13 @@ import random
 
 import numpy as np
 import math
+import time
+import sys
 
 from deap import base
 from deap import creator
 from deap import tools
+from deap import algorithms
 
 flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
@@ -65,7 +68,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -75,60 +78,40 @@ class Algorithm:
 		self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
 		self.toolbox.register("mate", tools.cxTwoPoint)
-		self.toolbox.register("mutate",tools.mutUniformInt, low = 0, up = 1,indpb=mutationRate)
+		self.toolbox.register("mutate",tools.mutFlipBit,indpb=mutationRate)
 		self.toolbox.register("select", tools.selTournament, tournsize=3)
 		self.toolbox.register("evaluate", self.evaluate)
+
+		self.hof = tools.HallOfFame(hofSize)
 
 	def evaluate(self,individual):
 		return sum(individual),
 
-	def run(self,popSize=10,CXPB=0.5,MUTPB=0.5,NGEN=100):
+	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
+
 		pop = self.toolbox.population(n=popSize)
+		if(log):
+			logfile = open("out/ft_"+str(int(math.floor(time.time())))+".tsv", 'w')
 		# Evaluate the entire population
-		fitnesses = map(self.toolbox.evaluate, pop)
-		for ind, fit in zip(pop, fitnesses):
-			ind.fitness.values = fit
 
-		for g in range(NGEN):
-
-			# Select the next generation individuals
-			offspring = tools.selBest(pop, 4)
-			# Clone the selected individuals
-			offspring = map(self.toolbox.clone, offspring)
-
-			# Apply crossover and mutation on the offspring
-			for child1, child2 in zip(offspring[::2], offspring[1::2]):
-				if random.random() < CXPB:
-					self.toolbox.mate(child1, child2)
-					del child1.fitness.values
-					del child2.fitness.values
-
-			for mutant in offspring:
-				if random.random() < MUTPB:
-					self.toolbox.mutate(mutant)
-					del mutant.fitness.values
-
-			# Evaluate the individuals with an invalid fitness
-			invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-			fitnesses = map(self.toolbox.evaluate, invalid_ind)
-			for ind, fit in zip(invalid_ind, fitnesses):
-				ind.fitness.values = fit
-
-			# The population is entirely replaced by the offspring
-			pop[:] = offspring
-
-			fits = [ind.fitness.values[0] for ind in pop]
-			
-			length = len(pop)
-			mean = sum(fits) / length
-			sum2 = sum(x*x for x in fits)
-			std = abs(sum2 / length - mean**2)**0.5
-			
-			# print("  Min %s" % min(fits))
-			# print("  Max %s" % max(fits))
-			# print("  Avg %s" % mean)
-			# print("  Std %s" % std)
 		
+		stats = tools.Statistics(lambda ind: ind.fitness.values)
+		stats.register("Avg", np.mean)
+		stats.register("Std", np.std)
+		stats.register("Min", np.min)
+		stats.register("Max", np.max)
+
+		if(log):
+			orig_stdout = sys.stdout
+			sys.stdout = logfile
+
+		algorithms.eaSimple(pop, self.toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=stats,
+                        halloffame=self.hof, verbose=True)
+
+		if(log):
+			sys.stdout = orig_stdout
+			logfile.close()
+
 		return pop
 
 
@@ -136,6 +119,7 @@ class Algorithm:
 class State:
 
 	instances = []
+	populations = []
 
 	def __init__(self):
 		creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
@@ -144,16 +128,16 @@ class State:
 	def registerInstance(self,genome = Genome(),mutationRate=0.1):
 		self.instances.append(Algorithm(genome,mutationRate))
 
-	def run(self,popSize=10,crossPb=0.5,mutPb=0.5,nGen=100):
+	def run(self,popSize=100,crossPb=0.5,mutPb=0.2,nGen=100):
+		self.populations = []
 		for i in self.instances:
-			i.run(popSize,crossPb,mutPb,nGen)
-
+			self.populations.append(i.run(popSize,crossPb,mutPb,nGen))
+		return self.populations
 
 def main():
 
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	state.run(10,0.5,0.5,100)
-
+	p = state.run(100,0.5,0.2,100)
 if __name__ == "__main__":
 	main()
