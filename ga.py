@@ -12,40 +12,55 @@ partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
 
 #Genome properties
 
-class Potential:
-	def __init__(self,eps,sig,cut=2.5):
-		self.eps = eps
-		self.sig = sig
 
 class Ligand:
-	def __init__(self,rad,ang,pot,mass=0.01):
+	def __init__(self,rad,ang,eps,sig,mass=0.01,cutoff=2.5):
 		self.rad = rad
 		self.ang = ang
-		self.pot = pot
+		self.eps = eps
+		self.sig = sig
 		self.mass = mass
+		self.cutoff = cutoff
+
+	def __str__(self):
+		ligstr= "rad:"+str(self.rad)+", ang:"+str(self.ang)+", eps:"+str(self.eps)+", sig:"+str(self.sig)
+		ligstr+= ", mass:"+str(self.mass)+", cutoff:"+str(self.cutoff)
+		return ligstr
 
 class Protein:
 	ligands=[]
-	def __init__(self,x=0,y=0,mass=1):
+	def __init__(self,x=0,y=0,mass=1,eps=1,sig=4,cutoff=2**(1/6)):
 		self.x = x
 		self.y = y
 		self.mass = mass
+		self.eps = eps
+		self.sig = sig
+		self.cutoff = cutoff
+
+	def addLigand(self,ligand):
+		if(isinstance(ligand,Ligand)):
+			self.ligands.append(ligand)
+
+	def __str__(self):
+		protstr = "x:"+str(self.x)+", y:"+str(self.y)+", m:"+str(self.mass)
+		protstr += ", eps:"+str(self.eps)+", sig:"+str(self.sig)+", cut:"+str(self.cutoff)
+		protstr += "\n"+str(len(self.ligands))+" ligands"
+		i=0
+		for l in self.ligands:
+			i+=1
+			protstr += "\nligand " + str(i) +" - "+ str(l)
+		return protstr
 
 class Genome:
 
-	def __init__(self,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,ljNum=4,ligNum=6):
+	def __init__(self,genes=20,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
 		self.ligAngPlaces = ligAngPlaces
-		self.ljNum = ljNum #must be a power of 2 for stable results
-		self.ligNum = ligNum
+		self.geneSize = ljEpsPlaces+ljSigmaPlaces+ligRadPlaces+ligAngPlaces
 
-		self.ljGeneSize = self.ljEpsPlaces + self.ljSigmaPlaces
-		self.ligTypePlaces = int(math.floor(math.log(self.ljNum,2)))
-		self.ligGeneSize = self.ligTypePlaces+self.ligRadPlaces+self.ligAngPlaces
-
-		self.size = self.ljNum*self.ljGeneSize + self.ligNum*self.ligGeneSize
+		self.size = genes*self.geneSize
 
 
 class Algorithm:
@@ -137,7 +152,7 @@ class State:
 def main():
 
 	state = State()
-	state.registerInstance(Genome(6,6,6,6,4,6),0.1)
+	state.registerInstance(Genome(),0.1)
 	state.run(10,0.5,0.5,100)
 
 if __name__ == "__main__":
