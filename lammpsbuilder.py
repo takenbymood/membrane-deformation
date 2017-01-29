@@ -22,7 +22,7 @@ class LammpsBond:
 		self.atom2 = atom2
 
 	def __str__(self):
-		s=str(bondId)+" "+str(bondType)+" "+str(atom1)+" "+str(atom2)
+		s=str(self.bondId)+" "+str(self.bondType)+" "+str(self.atom1)+" "+str(self.atom2)
 		return(s)
 
 class LammpsAngle:
@@ -42,6 +42,9 @@ class LammpsMass:
 	def __init__(self,atomType,mass):
 		self.atomType = atomType
 		self.mass = mass
+
+	def __str__(self):
+		s = str(self.atomType)+" "+str(self.mass)
 
 class LammpsData:
 
@@ -87,6 +90,43 @@ class LammpsData:
 
 	def addMass(self,atomType,mass):
 		self.masses.append(LammpsMass(atomType,mass))
+
+	def __str__(self):
+		s = "LAMMPS CONFIG FILE\n\n"
+
+		s += "  "+str(len(self.atoms))+" atoms\n"
+		s += "  "+str(len(self.bonds))+" bonds\n"
+		s += "  "+str(len(self.angles))+" angles\n"
+		s += "\n"
+		s += "  "+str(self.atomTypes)+" atom types\n"
+		s += "  "+str(self.bondTypes)+" bond types\n"
+		s += "  "+str(self.angleTypes)+" angle types\n"
+		s += "\n"
+		s += "  "+str(self.xlo)+"  "+str(self.xhi)+" xlo xhi\n"
+		s += "  "+str(self.ylo)+"  "+str(self.yhi)+" ylo yhi\n"
+		s += "  "+str(self.zlo)+"  "+str(self.zhi)+" zlo zhi\n"
+		s += "\n"
+		if(len(self.masses)>0):
+			s+="Masses\n\n"
+			for m in self.masses:
+				s+= "  "+str(m)+"\n"
+			s+="\n"
+		if(len(self.atoms)>0):
+			s+="Atoms\n\n"
+			for a in self.atoms:
+				s+="  "+str(a)+"\n"
+			s+="\n"
+		if(len(self.bonds)>0):
+			s+="Bonds\n\n"
+			for b in self.bonds:
+				s+="  "+str(b)+"\n"
+			s+="\n"
+		if(len(self.angles)>0):
+			s+="Angles\n\n"
+			for a in self.angles:
+				s+="  "+str(a)+"\n"
+			s+="\n"
+		return s
 
 
 class LammpsScript:

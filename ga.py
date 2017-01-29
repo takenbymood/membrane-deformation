@@ -187,5 +187,12 @@ def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
 	p = state.run(10,0.5,0.2,100,False)
+	data = lammpsbuilder.LammpsData(1,1,1)
+	data.addAtom(1,5,5)
+	data.addAtom(1,10,5)
+	data.addAtom(1,15,5)
+	data.addBond(1,1,2)
+	data.addAngle(1,1,2,3)
+	print (data)
 if __name__ == "__main__":
 	main()
