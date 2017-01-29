@@ -1,3 +1,94 @@
+class LammpsAtom:
+
+	def __init__(self,atomId,moleculeId,atomType,x=0,y=0,z=0):
+		self.atomId = atomId
+		self.moleculeId = moleculeId
+		self.x = x
+		self.y = y
+		self.z = z
+		self.atomType = atomType
+
+	def __str__(self):
+		s=str(self.atomId)+" "+str(self.moleculeId)+" "+str(self.atomType)
+		s+=" "+str(self.x)+" "+str(self.y)+" "+str(self.z)
+		return s
+
+class LammpsBond:
+
+	def __init__(self,bondId,bondType,atom1,atom2):
+		self.bondId = bondId
+		self.bondType = bondType
+		self.atom1 = atom1
+		self.atom2 = atom2
+
+	def __str__(self):
+		s=str(bondId)+" "+str(bondType)+" "+str(atom1)+" "+str(atom2)
+		return(s)
+
+class LammpsAngle:
+
+	def __init__(self,angleId,angleType,atom1,atom2,atom3):
+		self.angleId = angleId
+		self.angleType = angleType
+		self.atom1 = atom1
+		self.atom2 = atom2
+		self.atom3 = atom3
+
+	def __str__(self):
+		s = str(self.angleId)+" "+str(self.angleType)+" "+str(self.atom1)+" "+str(self.atom2)+" "+str(self.atom3)
+		return s
+
+class LammpsMass:
+	def __init__(self,atomType,mass):
+		self.atomType = atomType
+		self.mass = mass
+
+class LammpsData:
+
+	atomTypes = 0
+	bondTypes = 0
+	angleTypes = 0
+
+	atoms = []
+	bonds = []
+	angles = []
+	masses = []
+
+	def __init__(self,atomTypes,bondTypes,angleTypes,xlo=-200,xhi=200,ylo=-200,yhi=200,zlo=-200,zhi=200):
+		self.atomTypes = atomTypes
+		self.bondTypes = bondTypes
+		self.angleTypes = angleTypes
+		self.xlo = xlo
+		self.xhi = xhi
+		self.ylo = ylo
+		self.yhi = yhi
+		self.zlo = zlo
+		self.zhi = zhi
+
+	def addAtom(self,atomType,x,y,z=0,moleculeId=-1):
+		atomId = len(self.atoms)+1
+		if(moleculeId == -1):
+			moleculeId = atomId
+		a = LammpsAtom(atomId,moleculeId,atomType,x,y,z)
+		self.atoms.append(a)
+		return atomId
+
+	def addBond(self,bondType,atom1,atom2):
+		bondId = len(self.bonds)+1
+		bond = LammpsBond(bondId,bondType,atom1,atom2)
+		self.bonds.append(bond)
+		return bondId
+
+	def addAngle(self,angleType,atom1,atom2,atom3):
+		angleId = len(self.angles)+1
+		angle = LammpsAngle(angleId,angleType,atom1,atom2,atom3)
+		self.angles.append(angle)
+		return angleId
+
+	def addMass(self,atomType,mass):
+		self.masses.append(LammpsMass(atomType,mass))
+
+
 class LammpsScript:
 	sep = "			"
 	dimension = ""

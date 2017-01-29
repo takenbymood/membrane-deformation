@@ -186,6 +186,6 @@ def main():
 
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(100,0.5,0.2,100,False)
+	p = state.run(10,0.5,0.2,100,False)
 if __name__ == "__main__":
 	main()
