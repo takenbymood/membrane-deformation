@@ -65,7 +65,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=20,maxSigma=10,maxAngle=6.283185):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=20,maxSigma=10,maxAngle=6.283185,minRadius=0,minEps=0,minSigma=0,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -79,6 +79,11 @@ class Genome:
 		self.maxEps = maxEps
 		self.maxSigma = maxSigma
 
+		self.minRadius = minRadius
+		self.minAngle = minAngle
+		self.minEps = minEps
+		self.minSigma = minSigma
+
 		self.invMaxRad = 1.0/(2**ligRadPlaces)
 		self.invMaxAngle = 1.0/(2**ligAngPlaces)
 		self.invMaxEps = 1.0/(2**ljEpsPlaces)
@@ -89,13 +94,13 @@ class Genome:
 		for i in range(self.genes):
 			gPos = self.geneSize*i
 			gStart,gEnd = gPos,gPos + self.ljEpsPlaces
-			eps = grayToNumber(individual[gStart:gEnd])*self.invMaxEps*self.maxEps
+			eps = grayToNumber(individual[gStart:gEnd])*self.invMaxEps*(self.maxEps-self.minEps)+self.minEps
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ljSigmaPlaces
-			sig = grayToNumber(individual[gStart:gEnd])*self.invMaxSig*self.maxSigma
+			sig = grayToNumber(individual[gStart:gEnd])*self.invMaxSig*(self.maxSigma-self.minSigma)+self.minSigma
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligRadPlaces
-			rad = grayToNumber(individual[gStart:gEnd])*self.invMaxRad*self.maxRadius
+			rad = grayToNumber(individual[gStart:gEnd])*self.invMaxRad*(self.maxRadius-self.minRadius)+self.minRadius
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligAngPlaces
-			ang = grayToNumber(individual[gStart:gEnd])*self.invMaxAngle*self.maxAngle
+			ang = grayToNumber(individual[gStart:gEnd])*self.invMaxAngle*(self.maxAngle-self.minAngle)+self.minAngle
 			p.addLigand(Ligand(eps,sig,rad,ang))
 
 		return p
