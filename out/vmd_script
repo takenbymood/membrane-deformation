@@ -1,0 +1,15 @@
+display depthcue off 
+display projection orthographic
+
+set sel [atomselect top "all"]
+$sel set radius 10.0
+
+  mol delrep 0 top 
+  mol representation VDW 0.1 20 
+  mol color Name 
+  mol selection "all" 
+  mol material Opaque 
+  mol addrep top 
+
+color Display Background white
+display backgroundgradient off

@@ -2,3 +2,7 @@
 *.csv
 *.pyc
 *.tsv
+*.xyz
+*.lammps
+*.in
+*.data

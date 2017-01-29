@@ -1,3 +1,7 @@
+
+import sys
+
+
 class LammpsAtom:
 
 	def __init__(self,atomId,moleculeId,atomType,x=0,y=0,z=0):
@@ -45,6 +49,7 @@ class LammpsMass:
 
 	def __str__(self):
 		s = str(self.atomType)+" "+str(self.mass)
+		return s
 
 class LammpsData:
 
@@ -57,7 +62,7 @@ class LammpsData:
 	angles = []
 	masses = []
 
-	def __init__(self,atomTypes,bondTypes,angleTypes,xlo=-200,xhi=200,ylo=-200,yhi=200,zlo=-200,zhi=200):
+	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-200,yhi=200,zlo=-200,zhi=200):
 		self.atomTypes = atomTypes
 		self.bondTypes = bondTypes
 		self.angleTypes = angleTypes
@@ -177,7 +182,7 @@ class LammpsScript:
 		s = str(group)+ " " + str(action)
 		self.fixes.append(s)
 
-	def __init__(self,read_data="",dump="id all xyz 100 twodim.xyz",thermo="300",timestep="0.004",run="150000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
+	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.004",run="150000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
 		self.read_data = read_data
 		self.dump = dump
 		self.dimension = dimension
@@ -202,15 +207,18 @@ class LammpsScript:
 		s+="atom_modify"+d+self.atom_modify+"\n"
 		s+="\n"
 		s+="read_data"+d+self.read_data+"\n"
-		s+="neighbour"+d+self.neighbour+"\n"
+		#s+="neighbour"+d+self.neighbour+"\n"
 		s+="neigh_modify"+d+self.neigh_modify+"\n"
-		s+="bond_style"+d+self.bond_style+"\n"
+		if len(self.bond_coeffs)>0:
+			s+="bond_style"+d+self.bond_style+"\n"
 		for b in self.bond_coeffs:
 			s+="bond_coeff"+d+b+"\n"
-		s+="angle_style"+d+self.angle_style+"\n"
+		if len(self.angle_coeffs)>0:
+			s+="angle_style"+d+self.angle_style+"\n"
 		for a in self.angle_coeffs:
 			s+="angle_coeff"+d+a+"\n"
-		s+="pair_style"+d+self.pair_style+"\n"
+		if len(self.pair_coeffs)>0:
+			s+="pair_style"+d+self.pair_style+"\n"
 		for p in self.pair_coeffs:
 			s+="pair_coeff"+d+p+"\n"
 		s+="velocity"+d+self.velocity+"\n"
@@ -230,3 +238,24 @@ class LammpsScript:
 		s+="run"+d+self.run+"\n"
 
 		return s
+		
+
+class LammpsSimulation:
+
+	def __init__(self,name,filedir=""):
+		self.name = name
+		self.scriptName = name+"_script.in"
+		self.dataName = name+"_data.data"
+		self.filedir = filedir
+		self.script = LammpsScript(read_data=self.dataName)
+		self.data = LammpsData()
+
+	def saveFiles(self):
+		with open(self.filedir+self.scriptName, 'w') as file_:
+			file_.write(str(self.script))
+
+		with open(self.filedir+self.dataName, 'w') as file_:
+			file_.write(str(self.data))
+
+	def __str__(self):
+		return self.name + "\n" + str(self.script) + "\n" + str(self.data)
