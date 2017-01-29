@@ -10,6 +10,8 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
+import lammpsbuilder
+
 flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
 
@@ -63,27 +65,37 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=20,maxSigma=10,maxAngle=6.283185):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
 		self.ligAngPlaces = ligAngPlaces
 		self.geneSize = ljEpsPlaces+ljSigmaPlaces+ligRadPlaces+ligAngPlaces
 		self.genes = genes
-		self.size = genes*self.geneSize		
+		self.size = genes*self.geneSize
+
+		self.maxRadius = maxRadius
+		self.maxAngle = maxAngle
+		self.maxEps = maxEps
+		self.maxSigma = maxSigma
+
+		self.invMaxRad = 1.0/(2**ligRadPlaces)
+		self.invMaxAngle = 1.0/(2**ligAngPlaces)
+		self.invMaxEps = 1.0/(2**ljEpsPlaces)
+		self.invMaxSig = 1.0/(2**ljSigmaPlaces)	
 
 	def constructProtein(self,individual):
 		p = Protein()
 		for i in range(self.genes):
 			gPos = self.geneSize*i
 			gStart,gEnd = gPos,gPos + self.ljEpsPlaces
-			eps = grayToNumber(individual[gStart:gEnd])
+			eps = grayToNumber(individual[gStart:gEnd])*self.invMaxEps*self.maxEps
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ljSigmaPlaces
-			sig = grayToNumber(individual[gStart:gEnd])
+			sig = grayToNumber(individual[gStart:gEnd])*self.invMaxSig*self.maxSigma
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligRadPlaces
-			rad = grayToNumber(individual[gStart:gEnd])
+			rad = grayToNumber(individual[gStart:gEnd])*self.invMaxRad*self.maxRadius
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligAngPlaces
-			ang = grayToNumber(individual[gStart:gEnd])
+			ang = grayToNumber(individual[gStart:gEnd])*self.invMaxAngle*self.maxAngle
 			p.addLigand(Ligand(eps,sig,rad,ang))
 
 		return p
@@ -113,7 +125,7 @@ class Algorithm:
 		for l in p.ligands:
 			rsum += l.rad
 
-		return 1.0/rsum,
+		return rsum,
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
@@ -159,16 +171,16 @@ class State:
 	def registerInstance(self,genome = Genome(),mutationRate=0.1):
 		self.instances.append(Algorithm(genome,mutationRate))
 
-	def run(self,popSize=100,crossPb=0.5,mutPb=0.2,nGen=100):
+	def run(self,popSize=100,crossPb=0.5,mutPb=0.2,nGen=100,log=False):
 		self.populations = []
 		for i in self.instances:
-			self.populations.append(i.run(popSize,crossPb,mutPb,nGen,False))
+			self.populations.append(i.run(popSize,crossPb,mutPb,nGen,log))
 		return self.populations
 
 def main():
 
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(100,0.5,0.2,100)
+	p = state.run(100,0.5,0.2,100,False)
 if __name__ == "__main__":
 	main()
