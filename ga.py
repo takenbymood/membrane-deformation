@@ -4,6 +4,9 @@ import numpy as np
 import math
 import time
 import sys
+import subprocess
+import os
+import fileinput
 
 from deap import base
 from deap import creator
@@ -66,7 +69,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=6,maxSigma=4,maxAngle=6.283185,minRadius=0,minEps=0,minSigma=0,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=6,maxEps=5,maxSigma=2,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=1,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -127,11 +130,74 @@ class Algorithm:
 
 	def evaluate(self,individual):
 		p = self.genome.constructProtein(individual)
-		rsum = 0
-		for l in p.ligands:
-			rsum += l.rad
+		num = grayToNumber(individual)
+		run = "250000"
+		sim = MembraneSimulation("p_"+str(num),p,run=run,dumpres=run)
+		sim.saveFiles()
+		dir_path = os.path.dirname(os.path.realpath(__file__))
+		path = dir_path+"/"+sim.filedir
+		print ("lammps -in "+path)
+		try:
+			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName,shell=True)
+			proc.wait()
+		except: 
+			return 1E10,
+		sim.deleteFiles()
 
-		return 1.0/rsum,
+		outData = []
+
+		with open(dir_path+"/out/out/"+"p_"+str(num)+"_out.xyz", 'r+') as f:
+			lines = f.readlines()
+			for i in range(len(lines)):
+				if run in lines[i]:
+					lines[i] = ""
+					break
+				lines[i] = ""
+
+			for line in lines:
+				if line != "":
+					outData.append(line.replace("\n","").replace(" ",","))
+
+		os.remove(dir_path+"/out/out/"+"p_"+str(num)+"_out.xyz")
+
+		if len(outData)<100:
+			return 1E10,
+
+		outVectors = {}
+		for line in outData:
+			slist = line.split(",")
+			if(len(slist)<3):
+				return 1E10,
+			if int(slist[0]) in outVectors:
+				outVectors[int(slist[0])].append({'x':float(slist[1]),'y':float(slist[2])})
+			else:
+				outVectors[int(slist[0])] = []
+				outVectors[int(slist[0])].append({'x':float(slist[1]),'y':float(slist[2])})
+
+		magnitudes = []
+		for key, value in outVectors.iteritems():
+			if key > 3:
+				for v in value:
+					currentMin = 1E10
+					for v2 in outVectors[1]:
+						xd = v['x']-v2['x']
+						yd = v['y']-v2['y']
+						m = xd*xd + yd*yd
+						if m<currentMin:
+							currentMin = m
+					magnitudes.append(currentMin)
+
+
+		if len(magnitudes)<1:
+			return 1E10,
+
+		msum = 0
+		for m in magnitudes:
+			msum += m
+
+		msum = msum/float(len(magnitudes))
+
+		return msum,
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
@@ -161,21 +227,28 @@ class Algorithm:
 		for i in self.hof:
 			p = self.genome.constructProtein(i)
 			print(p)
-			sim = MembraneSimulation("test",p)
+			num = grayToNumber(i)
+			run = "250000"
+			sim = MembraneSimulation("p_"+str(num),p,run=run,dumpres="500")
 			sim.saveFiles()
-
+			dir_path = os.path.dirname(os.path.realpath(__file__))
+			path = dir_path+"/"+sim.filedir
+			print ("lammps -in "+path)
+			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName,shell=True)
+			proc.wait()
 		return pop
 
 
 
 class State:
 
-	instances = []
-	populations = []
+	
 
 	def __init__(self):
 		creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 		creator.create("Individual", list, fitness=creator.FitnessMin)
+		self.instances = []
+		self.populations = []
 
 	def registerInstance(self,genome = Genome(),mutationRate=0.1):
 		self.instances.append(Algorithm(genome,mutationRate))
@@ -188,9 +261,10 @@ class State:
 
 
 class MembraneSimulation(lb.LammpsSimulation):
-	def __init__(self,name,protein,mLength=100,spacing=2):
-		lb.LammpsSimulation.__init__(self,name,"out/")
-		self.script.dump = "id all xyz 100 " + name +"_out.xyz"
+
+	def __init__(self,name,protein,mLength=100,spacing=1.5,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
+		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
+		self.script.dump = "id all xyz "+dumpres+" out/" + name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
 		self.data.bondTypes = 1
 		self.data.angleTypes = 1
@@ -200,7 +274,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		for i in range(len(protein.ligands)):
 			self.data.addMass(4+i,0.01)
 
-		startX = -mLength
+		startX = -(0.5*mLength*spacing)
 
 		self.data.addAtom(2,startX,0)
 
@@ -212,7 +286,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.data.addAtom(2,startX+spacing*mLength,0)
 		self.data.addBond(1,mLength-1,mLength)
 
-		mol = self.data.addAtom(3,0,6,0)
+		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
 		self.script.addBond(1,2.0,1.3)
 		self.script.addAngle(1,30,180)
@@ -220,10 +294,11 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 		aType = 4
 		for l in protein.ligands:
-			self.data.addAtom(aType,l.rad*math.cos(l.ang),6+l.rad*math.sin(l.ang),0,mol)
+			self.data.addAtom(aType,corepos_x+l.rad*math.cos(l.ang),corepos_y+l.rad*math.sin(l.ang),0,mol)
 			self.script.addPair("1",str(aType),l.eps,l.sig,l.cutoff)
 			aType+=1
 		
+		self.script.addPair(1,3,1,4,5.6123)
 
 		self.script.addGroup("move",[1])
 		self.script.addGroup("anchor",[2])
@@ -233,16 +308,15 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.script.addGroup("protein",pGroup)
 
 		self.script.addFix("move","nve")
-		self.script.addFix("all","enforce2d")
 		self.script.addFix("protein","rigid/nve molecule")
 		self.script.addFix("all","langevin 1 1 1 1000")
-
+		self.script.addFix("all","enforce2d")
 
 def main():
 
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(10,0.5,0.2,100,False)
+	p = state.run(10,0.5,0.2,10,False)
 	
 if __name__ == "__main__":
 	main()

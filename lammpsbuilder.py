@@ -1,5 +1,6 @@
 
 import sys
+import os
 
 
 class LammpsAtom:
@@ -53,14 +54,6 @@ class LammpsMass:
 
 class LammpsData:
 
-	atomTypes = 0
-	bondTypes = 0
-	angleTypes = 0
-
-	atoms = []
-	bonds = []
-	angles = []
-	masses = []
 
 	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-200,yhi=200,zlo=-200,zhi=200):
 		self.atomTypes = atomTypes
@@ -72,6 +65,10 @@ class LammpsData:
 		self.yhi = yhi
 		self.zlo = zlo
 		self.zhi = zhi
+		self.atoms = []
+		self.bonds = []
+		self.masses = []
+		self.angles = []
 
 	def addAtom(self,atomType,x,y,z=0,moleculeId=-1):
 		atomId = len(self.atoms)+1
@@ -136,29 +133,6 @@ class LammpsData:
 
 class LammpsScript:
 	sep = "			"
-	dimension = ""
-	units = ""
-	atom_style = ""
-	atom_modify = ""
-	read_data = ""
-	dump = ""
-	neighbour = ""
-	neigh_modify = ""
-
-	thermo = ""
-	timestep = ""
-	run = ""
-	velocity = ""
-
-	bond_style=""
-	angle_style=""
-	pair_style=""
-	
-	bond_coeffs=[]
-	angle_coeffs=[]
-	pair_coeffs=[]
-	groups = []
-	fixes = []
 
 	def addPair(self,atom1,atom2,eps=0,sig=0,cutoff=""):
 		s = str(atom1)+" "+str(atom2)+" "+str(eps)+" "+str(sig)+" "+str(cutoff)
@@ -182,7 +156,10 @@ class LammpsScript:
 		s = str(group)+ " " + str(action)
 		self.fixes.append(s)
 
-	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.004",run="150000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
+	def addLine(self,line):
+		self.lines.append(str(line))
+
+	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.004",run="100000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
 		self.read_data = read_data
 		self.dump = dump
 		self.dimension = dimension
@@ -198,6 +175,12 @@ class LammpsScript:
 		self.thermo = thermo
 		self.run = run
 		self.velocity = velocity
+		self.bond_coeffs=[]
+		self.pair_coeffs=[]
+		self.angle_coeffs=[]
+		self.groups = []
+		self.fixes = []
+		self.lines = []
 
 	def __str__(self):
 		d = self.sep
@@ -231,7 +214,9 @@ class LammpsScript:
 		for f in self.fixes:
 			s+="fix"+d+str(i)+" "+f+"\n"
 			i+=1
-
+		s+="\n"
+		for l in self.lines:
+			s+=l
 		s+="\n"
 		s+="thermo"+d+self.thermo+"\n"
 		s+="timestep"+d+self.timestep+"\n"
@@ -242,13 +227,22 @@ class LammpsScript:
 
 class LammpsSimulation:
 
-	def __init__(self,name,filedir=""):
+	def __init__(self,name,filedir="",run="100000"):
+
 		self.name = name
 		self.scriptName = name+"_script.in"
 		self.dataName = name+"_data.data"
 		self.filedir = filedir
-		self.script = LammpsScript(read_data=self.dataName)
+		self.script = LammpsScript(read_data=self.dataName,run=run)
 		self.data = LammpsData()
+
+	def __del__(self):
+		name = ""
+		scriptName = ""
+		dataName = ""
+		filedir = ""
+		script = None
+		data = None
 
 	def saveFiles(self):
 		with open(self.filedir+self.scriptName, 'w') as file_:
@@ -256,6 +250,10 @@ class LammpsSimulation:
 
 		with open(self.filedir+self.dataName, 'w') as file_:
 			file_.write(str(self.data))
+
+	def deleteFiles(self):
+		os.remove(self.filedir+self.scriptName)
+		os.remove(self.filedir+self.dataName)
 
 	def __str__(self):
 		return self.name + "\n" + str(self.script) + "\n" + str(self.data)
