@@ -66,7 +66,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=0,maxSigma=0,maxAngle=6.283185,minRadius=0,minEps=0,minSigma=0,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=15,maxEps=6,maxSigma=4,maxAngle=6.283185,minRadius=0,minEps=0,minSigma=0,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
