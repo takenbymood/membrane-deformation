@@ -112,7 +112,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=1):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=250000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -121,24 +121,55 @@ class Algorithm:
 						 self.toolbox.bit, n=self.genome.size)
 		self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
-		self.toolbox.register("mate", tools.cxTwoPoint)
+		self.toolbox.register("mate", self.mate)
 		self.toolbox.register("mutate",tools.mutFlipBit,indpb=mutationRate)
+		self.toolbox.register("crossover",self.crossover)
 		self.toolbox.register("select", tools.selTournament, tournsize=3)
 		self.toolbox.register("evaluate", self.evaluate)
 
+		self.runtime = str(runtime)
+
+		self.currentP = 0
+
 		self.hof = tools.HallOfFame(hofSize)
+
+	def crossover(self,ind1,ind2):
+		pos = random.randint(1,self.genome.genes)
+		a = partition(ind1,self.genome.geneSize)
+		b = partition(ind2,self.genome.geneSize)
+
+
+		ap1 = a[0:pos]
+		ap2 = a[pos:self.genome.genes]
+
+		bp1 = b[0:pos]
+		bp2 = b[pos:self.genome.genes]
+
+		ind3 = flatten(ap1+bp2)
+		ind4 = flatten(bp1+ap2)
+
+
+		return ind1,ind2
+
+	def mate(self,ind1,ind2):
+		child1, child2 = [self.toolbox.clone(ind) for ind in (ind1, ind2)]
+		self.toolbox.crossover(child1, child2)
+		del child1.fitness.values
+		del child2.fitness.values
+		return child1,child2
+
+
 
 	def evaluate(self,individual):
 		p = self.genome.constructProtein(individual)
-		num = grayToNumber(individual)
-		run = "250000"
-		sim = MembraneSimulation("p_"+str(num),p,run=run,dumpres=run)
+		num = self.currentP
+		self.currentP+=1
+		sim = MembraneSimulation("p_"+str(num),p,run=self.runtime,dumpres=self.runtime)
 		sim.saveFiles()
 		dir_path = os.path.dirname(os.path.realpath(__file__))
 		path = dir_path+"/"+sim.filedir
-		print ("lammps -in "+path)
 		try:
-			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName,shell=True)
+			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > lammps.out",shell=True)
 			proc.wait()
 		except: 
 			return 1E10,
@@ -149,7 +180,7 @@ class Algorithm:
 		with open(dir_path+"/out/out/"+"p_"+str(num)+"_out.xyz", 'r+') as f:
 			lines = f.readlines()
 			for i in range(len(lines)):
-				if run in lines[i]:
+				if self.runtime in lines[i]:
 					lines[i] = ""
 					break
 				lines[i] = ""
@@ -197,45 +228,48 @@ class Algorithm:
 
 		msum = msum/float(len(magnitudes))
 
+
 		return msum,
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
 		pop = self.toolbox.population(n=popSize)
+		self.logfile = None
 		if(log):
-			logfile = open("out/ft_"+str(int(math.floor(time.time())))+".tsv", 'w')
+			self.logfile = open("out/ft_"+str(int(math.floor(time.time())))+".tsv", 'w')
 		# Evaluate the entire population
 
 		
-		stats = tools.Statistics(lambda ind: ind.fitness.values)
-		stats.register("Avg", np.mean)
-		stats.register("Std", np.std)
-		stats.register("Min", np.min)
-		stats.register("Max", np.max)
+		self.stats = tools.Statistics(lambda ind: ind.fitness.values)
+		self.stats.register("Avg", np.mean)
+		self.stats.register("Std", np.std)
+		self.stats.register("Min", np.min)
+		self.stats.register("Max", np.max)
 
 		if(log):
 			orig_stdout = sys.stdout
-			sys.stdout = logfile
+			sys.stdout = self.logfile
 
-		algorithms.eaSimple(pop, self.toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=stats,
+		algorithms.eaSimple(pop, self.toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=self.stats,
                         halloffame=self.hof, verbose=True)
 
 		if(log):
 			sys.stdout = orig_stdout
-			logfile.close()
+			self.logfile.close()
 
+		tag=1
 		for i in self.hof:
 			p = self.genome.constructProtein(i)
 			print(p)
 			num = grayToNumber(i)
-			run = "250000"
-			sim = MembraneSimulation("p_"+str(num),p,run=run,dumpres="500")
+			sim = MembraneSimulation("hof_"+str(tag),p,run=self.runtime,dumpres="100")
 			sim.saveFiles()
 			dir_path = os.path.dirname(os.path.realpath(__file__))
 			path = dir_path+"/"+sim.filedir
 			print ("lammps -in "+path)
-			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName,shell=True)
+			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
 			proc.wait()
+			tag+=1
 		return pop
 
 
@@ -262,7 +296,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,mLength=100,spacing=1.5,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
+	def __init__(self,name,protein,mLength=100,spacing=2,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" out/" + name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -270,7 +304,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.data.angleTypes = 1
 		self.data.addMass(1,1)
 		self.data.addMass(2,1)
-		self.data.addMass(3,2)
+		self.data.addMass(3,3)
 		for i in range(len(protein.ligands)):
 			self.data.addMass(4+i,0.01)
 
@@ -289,7 +323,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
 		self.script.addBond(1,2.0,1.3)
-		self.script.addAngle(1,30,180)
+		self.script.addAngle(1,50,180)
 		self.script.addPair("*","*",0,0,0)
 
 		aType = 4

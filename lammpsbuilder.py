@@ -220,7 +220,7 @@ class LammpsScript:
 		s+="\n"
 		s+="thermo"+d+self.thermo+"\n"
 		s+="timestep"+d+self.timestep+"\n"
-		s+="run"+d+self.run+"\n"
+		s+="run"+d+self.run+" post no\n"
 
 		return s
 		
