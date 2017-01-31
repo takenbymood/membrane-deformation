@@ -69,7 +69,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=6,maxEps=5,maxSigma=2,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=1,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=6,maxEps=10,maxSigma=4,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=4,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -209,14 +209,14 @@ class Algorithm:
 		for key, value in outVectors.iteritems():
 			if key > 3:
 				for v in value:
-					currentMin = 1E10
+					inrange = 0
 					for v2 in outVectors[1]:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
 						m = xd*xd + yd*yd
-						if m<currentMin:
-							currentMin = m
-					magnitudes.append(currentMin)
+						if m<(2.5*4)**2:
+							inrange+=1
+					magnitudes.append(inrange)
 
 
 		if len(magnitudes)<1:
@@ -226,7 +226,10 @@ class Algorithm:
 		for m in magnitudes:
 			msum += m
 
-		msum = msum/float(len(magnitudes))
+		if(msum == 0):
+			return 1E10
+
+		msum = 1.0/msum
 
 
 		return msum,
@@ -234,9 +237,11 @@ class Algorithm:
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
 		pop = self.toolbox.population(n=popSize)
+		stamp = str(int(math.floor(time.time())))
+		os.mkdir("out/"+stamp)
 		self.logfile = None
 		if(log):
-			self.logfile = open("out/ft_"+str(int(math.floor(time.time())))+".tsv", 'w')
+			self.logfile = open("out/"+stamp+"/ft.tsv", 'w')
 		# Evaluate the entire population
 
 		
@@ -258,18 +263,19 @@ class Algorithm:
 			self.logfile.close()
 
 		tag=1
-		for i in self.hof:
-			p = self.genome.constructProtein(i)
-			print(p)
-			num = grayToNumber(i)
-			sim = MembraneSimulation("hof_"+str(tag),p,run=self.runtime,dumpres="100")
-			sim.saveFiles()
-			dir_path = os.path.dirname(os.path.realpath(__file__))
-			path = dir_path+"/"+sim.filedir
-			print ("lammps -in "+path)
-			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
-			proc.wait()
-			tag+=1
+		with open("out/"+stamp+"/prot.out", 'w') as file_:
+			for i in self.hof:
+				p = self.genome.constructProtein(i)
+				file_.write(str(p))
+				num = grayToNumber(i)
+				sim = MembraneSimulation("hof_"+stamp+"_"+str(tag),p,run=self.runtime,dumpres="100")
+				sim.saveFiles()
+				dir_path = os.path.dirname(os.path.realpath(__file__))
+				path = dir_path+"/"+sim.filedir
+				proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
+				proc.wait()
+				tag+=1
+
 		return pop
 
 
@@ -296,7 +302,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,mLength=100,spacing=2,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
+	def __init__(self,name,protein,mLength=50,spacing=2,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" out/" + name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -323,7 +329,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
 		self.script.addBond(1,2.0,1.3)
-		self.script.addAngle(1,50,180)
+		self.script.addAngle(1,25,180)
 		self.script.addPair("*","*",0,0,0)
 
 		aType = 4
@@ -350,7 +356,7 @@ def main():
 
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(10,0.5,0.2,10,False)
+	p = state.run(16,0.5,0.2,100,True)
 	
 if __name__ == "__main__":
 	main()

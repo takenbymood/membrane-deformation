@@ -6,3 +6,4 @@
 *.lammps
 *.in
 *.data
+*.out

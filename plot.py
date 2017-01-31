@@ -11,11 +11,12 @@ parser.add_argument('--in','-i', dest='filepath', required=False,
 args = parser.parse_args()
 
 # example data
-data = np.genfromtxt(args.filepath, delimiter='	', skip_header=10,
-                     skip_footer=10, names=['GEN','N','AVG', 'MIN','MAX','STD'])
+data = np.genfromtxt(args.filepath, delimiter='	', skip_header=2,
+                     skip_footer=0, names=['GEN','N','AVG', 'STD','MIN','MAX'])
 
 x = data['GEN']
-y = data['AVG']
+y = 1.0/data['AVG']
+y2 = 1.0/data['MIN']
 err = data['STD']
 errN = map(math.sqrt,data['N'])
 
@@ -28,6 +29,7 @@ ax1.set_xlabel('Generation Number')
 ax1.set_ylabel('Fitness')
 
 ax1.plot(x, y, color='r')
-ax1.errorbar(x,y, yerr=err/errN, fmt='o')
+ax1.errorbar(x,y, fmt='o')
+ax1.plot(x,y2)
 
 plt.show()
