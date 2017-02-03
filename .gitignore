@@ -7,3 +7,5 @@
 *.in
 *.data
 *.out
+*.zip
+*.DS*
