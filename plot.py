@@ -15,10 +15,14 @@ data = np.genfromtxt(args.filepath, delimiter='	', skip_header=2,
                      skip_footer=0, names=['GEN','N','AVG', 'STD','MIN','MAX'])
 
 x = data['GEN']
-y = 1.0/data['AVG']
+yorig = data['AVG']
+print data
+y = 1.0/yorig
 y2 = 1.0/data['MIN']
 err = data['STD']
 errN = map(math.sqrt,data['N'])
+stdErr = err/errN
+errPerc = (stdErr/yorig)
 
 fig = plt.figure()
 
@@ -29,7 +33,9 @@ ax1.set_xlabel('Generation Number')
 ax1.set_ylabel('Fitness')
 
 ax1.plot(x, y, color='r')
-ax1.errorbar(x,y, fmt='o')
+ax1.errorbar(x,y, yerr=y*errPerc, fmt='o')
 ax1.plot(x,y2)
+
+plt.ylim(2,4.3)
 
 plt.show()

@@ -13,10 +13,13 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
+from threading import Timer
+
 import lammpsbuilder as lb
 
 flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
+rmcase = lambda l,n: [x for x in l if not (x==n)]
 
 def grayToNumber(g):
 	b=[g[0]]
@@ -27,6 +30,11 @@ def grayToNumber(g):
 		out = (out << 1) | bit
 	return out
 
+def kill(p):
+    try:
+        p.kill()
+    except OSError:
+        pass # ignore
 
 class Ligand:
 	def __init__(self,eps,sig,rad,ang,mass=0.01,cutoff=2.5):
@@ -69,7 +77,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=6,maxEps=10,maxSigma=4,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=4,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=8,maxEps=10,maxSigma=1,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=1,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -112,7 +120,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=250000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=100000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -133,23 +141,30 @@ class Algorithm:
 
 		self.hof = tools.HallOfFame(hofSize)
 
+		self.stamp = str(int(math.floor(time.time())))
+
+		self.maxFit = 1E20
+
 	def crossover(self,ind1,ind2):
 		pos = random.randint(1,self.genome.genes)
+		pos2 = random.randint(pos,self.genome.genes)
 		a = partition(ind1,self.genome.geneSize)
 		b = partition(ind2,self.genome.geneSize)
 
 
 		ap1 = a[0:pos]
-		ap2 = a[pos:self.genome.genes]
+		ap2 = a[pos:pos2]
 
 		bp1 = b[0:pos]
-		bp2 = b[pos:self.genome.genes]
+		bp2 = b[pos:pos2]
 
-		ind3 = flatten(ap1+bp2)
-		ind4 = flatten(bp1+ap2)
+		ap3 = a[pos2:self.genome.genes]
+		bp3 = b[pos2:self.genome.genes]
 
+		ind3 = flatten(ap1+bp2+ap3)
+		ind4 = flatten(bp1+ap2+bp3)
 
-		return ind1,ind2
+		return ind3,ind4
 
 	def mate(self,ind1,ind2):
 		child1, child2 = [self.toolbox.clone(ind) for ind in (ind1, ind2)]
@@ -161,23 +176,33 @@ class Algorithm:
 
 
 	def evaluate(self,individual):
+		maxFit = self.maxFit
 		p = self.genome.constructProtein(individual)
 		num = self.currentP
 		self.currentP+=1
-		sim = MembraneSimulation("p_"+str(num),p,run=self.runtime,dumpres=self.runtime)
+		sim = MembraneSimulation("p_"+str(num),p,"xyz/","",run=self.runtime,dumpres=self.runtime)
 		sim.saveFiles()
 		dir_path = os.path.dirname(os.path.realpath(__file__))
 		path = dir_path+"/"+sim.filedir
 		try:
 			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > lammps.out",shell=True)
+			t = Timer(30, kill, [proc])
+			t.start()
 			proc.wait()
+			t.cancel()
 		except: 
-			return 1E10,
+			individual.fitness.valid = False
+			return maxFit,
 		sim.deleteFiles()
 
 		outData = []
 
-		with open(dir_path+"/out/out/"+"p_"+str(num)+"_out.xyz", 'r+') as f:
+		outFilename = dir_path+"/out/xyz/"+"p_"+str(num)+"_out.xyz"
+
+		if(not os.path.exists(outFilename)):
+			return maxFit,
+
+		with open(outFilename, 'r+') as f:
 			lines = f.readlines()
 			for i in range(len(lines)):
 				if self.runtime in lines[i]:
@@ -189,16 +214,16 @@ class Algorithm:
 				if line != "":
 					outData.append(line.replace("\n","").replace(" ",","))
 
-		os.remove(dir_path+"/out/out/"+"p_"+str(num)+"_out.xyz")
+		os.remove(outFilename)
 
-		if len(outData)<100:
-			return 1E10,
+		if len(outData)<50:
+			return maxFit,
 
 		outVectors = {}
 		for line in outData:
 			slist = line.split(",")
 			if(len(slist)<3):
-				return 1E10,
+				return maxFit,
 			if int(slist[0]) in outVectors:
 				outVectors[int(slist[0])].append({'x':float(slist[1]),'y':float(slist[2])})
 			else:
@@ -207,49 +232,63 @@ class Algorithm:
 
 		magnitudes = []
 		for key, value in outVectors.iteritems():
-			if key > 3:
+			if key == 3:
 				for v in value:
 					inrange = 0
+					fmag = 0
 					for v2 in outVectors[1]:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
-						m = xd*xd + yd*yd
-						if m<(2.5*4)**2:
+						m = math.sqrt(xd*xd + yd*yd)
+						if(m<15):
 							inrange+=1
-					magnitudes.append(inrange)
-
+							if m>0:	
+								fmag+=1.0/m
+							else:
+								fmag+=1E10
+					if(inrange>0):
+						magnitudes.append(fmag)
 
 		if len(magnitudes)<1:
-			return 1E10,
+			return maxFit,
 
 		msum = 0
 		for m in magnitudes:
 			msum += m
 
 		if(msum == 0):
-			return 1E10
+		 	return maxFit,
 
-		msum = 1.0/msum
+		return 1.0/msum,
 
+	def clmean(self,l):
+		return np.mean(rmcase(l,(self.maxFit,)))
 
-		return msum,
+	def clstd(self,l):
+		return np.std(rmcase(l,(self.maxFit,)))
+
+	def clmin(self,l):
+		return np.min(rmcase(l,(self.maxFit,)))
+
+	def clmax(self,l):
+		return np.max(rmcase(l,(self.maxFit,)))
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
 		pop = self.toolbox.population(n=popSize)
-		stamp = str(int(math.floor(time.time())))
-		os.mkdir("out/"+stamp)
+		
+		os.mkdir("out/"+self.stamp)
 		self.logfile = None
 		if(log):
-			self.logfile = open("out/"+stamp+"/ft.tsv", 'w')
+			self.logfile = open("out/"+self.stamp+"/ft.tsv", 'w')
 		# Evaluate the entire population
 
 		
 		self.stats = tools.Statistics(lambda ind: ind.fitness.values)
-		self.stats.register("Avg", np.mean)
-		self.stats.register("Std", np.std)
-		self.stats.register("Min", np.min)
-		self.stats.register("Max", np.max)
+		self.stats.register("Avg", self.clmean)
+		self.stats.register("Std", self.clstd)
+		self.stats.register("Min", self.clmin)
+		self.stats.register("Max", self.clmax)
 
 		if(log):
 			orig_stdout = sys.stdout
@@ -263,12 +302,13 @@ class Algorithm:
 			self.logfile.close()
 
 		tag=1
-		with open("out/"+stamp+"/prot.out", 'w') as file_:
+		with open("out/"+self.stamp+"/prot.out", 'w') as file_:
 			for i in self.hof:
 				p = self.genome.constructProtein(i)
 				file_.write(str(p))
 				num = grayToNumber(i)
-				sim = MembraneSimulation("hof_"+stamp+"_"+str(tag),p,run=self.runtime,dumpres="100")
+				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=self.runtime,dumpres="100")
+				sim.filedir = "out/"+self.stamp+"/"
 				sim.saveFiles()
 				dir_path = os.path.dirname(os.path.realpath(__file__))
 				path = dir_path+"/"+sim.filedir
@@ -302,9 +342,9 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,mLength=50,spacing=2,corepos_x=0, corepos_y=6,run="250000",dumpres="100"):
+	def __init__(self,name,protein,outdir,filedir,mLength=50,spacing=2.0,corepos_x=0, corepos_y=8,run="100000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
-		self.script.dump = "id all xyz "+dumpres+" out/" + name +"_out.xyz"
+		self.script.dump = "id all xyz "+dumpres+" "+outdir+name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
 		self.data.bondTypes = 1
 		self.data.angleTypes = 1
@@ -353,10 +393,9 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.script.addFix("all","enforce2d")
 
 def main():
-
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(16,0.5,0.2,100,True)
+	p = state.run(100,0.5,0.2,10,False)
 	
 if __name__ == "__main__":
 	main()
