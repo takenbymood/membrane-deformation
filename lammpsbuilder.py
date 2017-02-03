@@ -138,6 +138,9 @@ class LammpsScript:
 		s = str(atom1)+" "+str(atom2)+" "+str(eps)+" "+str(sig)+" "+str(cutoff)
 		self.pair_coeffs.append(s)
 
+	def addPairModify(self,line):
+		self.pairmod.append(line)
+
 	def addBond(self,bond,K,x0):
 		s = str(bond)+" "+str(K)+" "+str(x0)
 		self.bond_coeffs.append(s)
@@ -159,7 +162,7 @@ class LammpsScript:
 	def addLine(self,line):
 		self.lines.append(str(line))
 
-	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.004",run="100000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
+	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.001",run="100000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
 		self.read_data = read_data
 		self.dump = dump
 		self.dimension = dimension
@@ -181,6 +184,7 @@ class LammpsScript:
 		self.groups = []
 		self.fixes = []
 		self.lines = []
+		self.pairmod=[]
 
 	def __str__(self):
 		d = self.sep
@@ -204,6 +208,8 @@ class LammpsScript:
 			s+="pair_style"+d+self.pair_style+"\n"
 		for p in self.pair_coeffs:
 			s+="pair_coeff"+d+p+"\n"
+		for p in self.pairmod:
+			s+="pair_modify"+d+p+"\n"
 		s+="velocity"+d+self.velocity+"\n"
 		s+="dump"+d+self.dump+"\n"
 

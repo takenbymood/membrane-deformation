@@ -77,7 +77,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=8,maxEps=10,maxSigma=1,maxAngle=6.283185,minRadius=2,minEps=0,minSigma=1,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=5,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -240,7 +240,7 @@ class Algorithm:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
 						m = math.sqrt(xd*xd + yd*yd)
-						if(m<16):
+						if(m<30):
 							inrange+=1
 							if m>0:	
 								fmag+=1.0/m
@@ -342,7 +342,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,outdir,filedir,mLength=50,spacing=2.0,corepos_x=0, corepos_y=8,run="100000",dumpres="100"):
+	def __init__(self,name,protein,outdir,filedir,mLength=70,spacing=2.0,corepos_x=0, corepos_y=6,run="100000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" "+outdir+name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -369,7 +369,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
 		self.script.addBond(1,2.0,1.3)
-		self.script.addAngle(1,25,180)
+		self.script.addAngle(1,40,180)
 		self.script.addPair("*","*",0,0,0)
 
 		aType = 4
@@ -378,7 +378,10 @@ class MembraneSimulation(lb.LammpsSimulation):
 			self.script.addPair("1",str(aType),l.eps,l.sig,l.cutoff)
 			aType+=1
 		
-		self.script.addPair(1,3,1,4,5.6123)
+		self.script.addPair(1,3,100,4,5.6123)
+		self.script.addPair(1,1,100,1,1.1)
+		self.script.addPair(1,2,100,1,1.1)
+		self.script.addPairModify("shift yes")
 
 		self.script.addGroup("move",[1])
 		self.script.addGroup("anchor",[2])
@@ -395,7 +398,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(100,0.5,0.2,10,False)
+	p = state.run(100,0.5,0.2,100,False)
 	
 if __name__ == "__main__":
 	main()
