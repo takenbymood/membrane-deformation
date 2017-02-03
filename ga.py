@@ -240,7 +240,7 @@ class Algorithm:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
 						m = math.sqrt(xd*xd + yd*yd)
-						if(m<15):
+						if(m<16):
 							inrange+=1
 							if m>0:	
 								fmag+=1.0/m
