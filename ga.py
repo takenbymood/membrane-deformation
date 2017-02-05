@@ -77,7 +77,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=5,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -186,7 +186,7 @@ class Algorithm:
 		path = dir_path+"/"+sim.filedir
 		try:
 			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > lammps.out",shell=True)
-			t = Timer(30, kill, [proc])
+			t = Timer(60, kill, [proc])
 			t.start()
 			proc.wait()
 			t.cancel()
@@ -240,7 +240,7 @@ class Algorithm:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
 						m = math.sqrt(xd*xd + yd*yd)
-						if(m<50):
+						if(m<32):
 							inrange+=1
 							if m>0:	
 								fmag+=1.0/m
@@ -409,7 +409,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(10,0.5,0.3,10,False)
+	p = state.run(100,0.5,0.3,100,False)
 	
 if __name__ == "__main__":
 	main()
