@@ -77,7 +77,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=5,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
+	def __init__(self,genes=5,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -120,7 +120,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=100000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=15,runtime=250000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -240,7 +240,7 @@ class Algorithm:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
 						m = math.sqrt(xd*xd + yd*yd)
-						if(m<30):
+						if(m<50):
 							inrange+=1
 							if m>0:	
 								fmag+=1.0/m
@@ -273,6 +273,9 @@ class Algorithm:
 	def clmax(self,l):
 		return np.max(rmcase(l,(self.maxFit,)))
 
+	def clnum(self,l):
+		return len(rmcase(l,(self.maxFit,)))
+
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
 		pop = self.toolbox.population(n=popSize)
@@ -285,6 +288,7 @@ class Algorithm:
 
 		
 		self.stats = tools.Statistics(lambda ind: ind.fitness.values)
+		self.stats.register("NValid", self.clnum)
 		self.stats.register("Avg", self.clmean)
 		self.stats.register("Std", self.clstd)
 		self.stats.register("Min", self.clmin)
@@ -302,9 +306,10 @@ class Algorithm:
 			self.logfile.close()
 
 		tag=1
-		with open("out/"+self.stamp+"/prot.out", 'w') as file_:
+		with open("out/"+self.stamp+"/hof.out", 'w') as file_:
 			for i in self.hof:
 				p = self.genome.constructProtein(i)
+				file_.write(str(i))
 				file_.write(str(p))
 				num = grayToNumber(i)
 				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=self.runtime,dumpres="100")
@@ -315,6 +320,12 @@ class Algorithm:
 				proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
 				proc.wait()
 				tag+=1
+
+		with open("out/"+self.stamp+"/pop.out", 'w') as file_:
+			for i in pop:
+				p = self.genome.constructProtein(i)
+				file_.write(str(i))
+				file_.write(str(p))
 
 		return pop
 
@@ -342,7 +353,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,outdir,filedir,mLength=70,spacing=2.0,corepos_x=0, corepos_y=6,run="100000",dumpres="100"):
+	def __init__(self,name,protein,outdir,filedir,mLength=70,spacing=2.0,corepos_x=0, corepos_y=4.5,run="250000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" "+outdir+name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -375,10 +386,10 @@ class MembraneSimulation(lb.LammpsSimulation):
 		aType = 4
 		for l in protein.ligands:
 			self.data.addAtom(aType,corepos_x+l.rad*math.cos(l.ang),corepos_y+l.rad*math.sin(l.ang),0,mol)
-			self.script.addPair("1",str(aType),l.eps,l.sig,l.cutoff)
+			self.script.addPair("1",str(aType),l.eps,l.sig,l.sig*l.cutoff)
 			aType+=1
 		
-		self.script.addPair(1,3,100,4,5.6123)
+		self.script.addPair(1,3,100,4,4.4)
 		self.script.addPair(1,1,100,1,1.1)
 		self.script.addPair(1,2,100,1,1.1)
 		self.script.addPairModify("shift yes")
@@ -398,7 +409,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(100,0.5,0.2,100,False)
+	p = state.run(10,0.5,0.3,10,False)
 	
 if __name__ == "__main__":
 	main()

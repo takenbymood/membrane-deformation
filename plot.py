@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 # example data
 data = np.genfromtxt(args.filepath, delimiter='	', skip_header=2,
-                     skip_footer=0, names=['GEN','N','AVG', 'STD','MIN','MAX'])
+                     skip_footer=0, names=['GEN','N','NV','AVG', 'STD','MIN','MAX'])
 
 x = data['GEN']
 yorig = data['AVG']
@@ -20,7 +20,7 @@ print data
 y = 1.0/yorig
 y2 = 1.0/data['MIN']
 err = data['STD']
-errN = map(math.sqrt,data['N'])
+errN = map(math.sqrt,data['NV'])
 stdErr = err/errN
 errPerc = (stdErr/yorig)
 
@@ -36,6 +36,6 @@ ax1.plot(x, y, color='r')
 ax1.errorbar(x,y, yerr=y*errPerc, fmt='o')
 ax1.plot(x,y2)
 
-plt.ylim(2,4.3)
+plt.ylim(0,np.max(y2)+1)
 
 plt.show()
