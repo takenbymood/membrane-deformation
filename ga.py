@@ -79,7 +79,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=4,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=2,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=2,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -122,7 +122,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=200000):
+	def __init__(self,genome=Genome(),mutationRate=0.2,hofSize=5,runtime=200000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -327,7 +327,7 @@ class Algorithm:
 				file_.write(str(i))
 				file_.write(str(p))
 				num = grayToNumber(i)
-				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=self.runtime,dumpres="100")
+				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=5*self.runtime,dumpres="100")
 				sim.filedir = "out/"+self.stamp+"/"
 				sim.saveFiles()
 				dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -426,7 +426,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(20,0.5,0.33,10,False)
+	p = state.run(50,0.5,0.25,30,False)
 	
 if __name__ == "__main__":
 	main()
