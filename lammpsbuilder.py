@@ -55,7 +55,7 @@ class LammpsMass:
 class LammpsData:
 
 
-	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-200,yhi=200,zlo=-200,zhi=200):
+	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-50,yhi=50,zlo=-50,zhi=50):
 		self.atomTypes = atomTypes
 		self.bondTypes = bondTypes
 		self.angleTypes = angleTypes
@@ -191,6 +191,7 @@ class LammpsScript:
 		s="dimension"+d+self.dimension+"\n"
 		s+="units"+d+self.units+"\n"
 		s+="atom_style"+d+self.atom_style+"\n"
+		s+="boundary p f p\n"
 		s+="atom_modify"+d+self.atom_modify+"\n"
 		s+="\n"
 		s+="read_data"+d+self.read_data+"\n"
@@ -226,7 +227,7 @@ class LammpsScript:
 		s+="\n"
 		s+="thermo"+d+self.thermo+"\n"
 		s+="timestep"+d+self.timestep+"\n"
-		s+="run"+d+self.run+" post no\n"
+		s+="run"+d+self.run+"\n"
 
 		return s
 		

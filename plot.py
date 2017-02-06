@@ -36,6 +36,7 @@ ax1.plot(x, y, color='r')
 ax1.errorbar(x,y, yerr=y*errPerc, fmt='o')
 ax1.plot(x,y2)
 
-plt.ylim(0,np.max(y2)+1)
+
+plt.ylim(np.min(y)-0.1*(np.max(y)-np.min(y)),np.max(y2)+0.2*(np.max(y)-np.min(y)))
 
 plt.show()

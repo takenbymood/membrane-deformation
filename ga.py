@@ -7,6 +7,7 @@ import sys
 import subprocess
 import os
 import fileinput
+import time
 
 from deap import base
 from deap import creator
@@ -32,6 +33,7 @@ def grayToNumber(g):
 
 def kill(p):
     try:
+    	print "killing "+str(p) 
         p.kill()
     except OSError:
         pass # ignore
@@ -77,7 +79,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=6,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=0,minSigma=2,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=6,ligRadPlaces=4,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=2,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=2,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -120,7 +122,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=15,runtime=250000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=5,runtime=200000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -192,14 +194,20 @@ class Algorithm:
 			t.cancel()
 		except: 
 			individual.fitness.valid = False
+			#print "crashed or failed"
 			return maxFit,
-		sim.deleteFiles()
+		
 
 		outData = []
+
+		time.sleep(0.5)
+
+		sim.deleteFiles()
 
 		outFilename = dir_path+"/out/xyz/"+"p_"+str(num)+"_out.xyz"
 
 		if(not os.path.exists(outFilename)):
+			#print "no outfile"
 			return maxFit,
 
 		with open(outFilename, 'r+') as f:
@@ -214,9 +222,11 @@ class Algorithm:
 				if line != "":
 					outData.append(line.replace("\n","").replace(" ",","))
 
+
 		os.remove(outFilename)
 
 		if len(outData)<50:
+			#print str(outData)
 			return maxFit,
 
 		outVectors = {}
@@ -231,6 +241,7 @@ class Algorithm:
 				outVectors[int(slist[0])].append({'x':float(slist[1]),'y':float(slist[2])})
 
 		magnitudes = []
+		boxsize = 20
 		for key, value in outVectors.iteritems():
 			if key == 3:
 				for v in value:
@@ -239,17 +250,18 @@ class Algorithm:
 					for v2 in outVectors[1]:
 						xd = v['x']-v2['x']
 						yd = v['y']-v2['y']
-						m = math.sqrt(xd*xd + yd*yd)
-						if(m<32):
+						if(abs(xd) < boxsize and abs(yd) < boxsize):
+							m = math.sqrt(xd*xd + yd*yd)
 							inrange+=1
 							if m>0:	
-								fmag+=1.0/m
+								fmag+=m
 							else:
 								fmag+=1E10
 					if(inrange>0):
-						magnitudes.append(fmag)
+						magnitudes.append(fmag/(inrange))
 
 		if len(magnitudes)<1:
+			#print str(num) + " protein out of range"
 			return maxFit,
 
 		msum = 0
@@ -257,9 +269,12 @@ class Algorithm:
 			msum += m
 
 		if(msum == 0):
+			#print "no msum"
 		 	return maxFit,
 
-		return 1.0/msum,
+		
+
+		return msum,
 
 	def clmean(self,l):
 		return np.mean(rmcase(l,(self.maxFit,)))
@@ -353,7 +368,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,outdir,filedir,mLength=70,spacing=2.0,corepos_x=0, corepos_y=4.5,run="250000",dumpres="100"):
+	def __init__(self,name,protein,outdir,filedir,mLength=70,spacing=1.7,corepos_x=0, corepos_y=10,run="200000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" "+outdir+name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -390,7 +405,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 			aType+=1
 		
 		self.script.addPair(1,3,100,4,4.4)
-		self.script.addPair(1,1,100,1,1.1)
+		self.script.addPair(1,1,100,1.3,1.45)
 		self.script.addPair(1,2,100,1,1.1)
 		self.script.addPairModify("shift yes")
 
@@ -405,11 +420,13 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.script.addFix("protein","rigid/nve molecule")
 		self.script.addFix("all","langevin 1 1 1 1000")
 		self.script.addFix("all","enforce2d")
+		self.script.addLine("fix 4 all wall/lj93 yhi 18 1.0 1.0 2.5")
+		
 
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.1)
-	p = state.run(100,0.5,0.3,100,False)
+	p = state.run(20,0.5,0.33,10,False)
 	
 if __name__ == "__main__":
 	main()
