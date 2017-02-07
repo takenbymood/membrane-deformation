@@ -122,7 +122,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.2,hofSize=15,runtime=250000):
+	def __init__(self,genome=Genome(),mutationRate=0.2,hofSize=10,runtime=250000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -134,7 +134,7 @@ class Algorithm:
 		self.toolbox.register("mate", self.mate)
 		self.toolbox.register("mutate",tools.mutFlipBit,indpb=mutationRate)
 		self.toolbox.register("crossover",self.crossover)
-		self.toolbox.register("select", tools.selTournament, tournsize=5)
+		self.toolbox.register("select", tools.selTournament, tournsize=4)
 		self.toolbox.register("evaluate", self.evaluate)
 
 		self.runtime = str(runtime)
