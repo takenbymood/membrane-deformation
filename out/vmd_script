@@ -3,6 +3,8 @@ display projection orthographic
 
 set sel [atomselect top "all"]
 $sel set radius 10.0
+set core [atomselect top type “3”]
+$core set radius 100.0
 
   mol delrep 0 top 
   mol representation VDW 0.1 20 
