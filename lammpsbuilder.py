@@ -191,7 +191,7 @@ class LammpsScript:
 		s="dimension"+d+self.dimension+"\n"
 		s+="units"+d+self.units+"\n"
 		s+="atom_style"+d+self.atom_style+"\n"
-		s+="boundary p f p\n"
+		s+="boundary f f p\n"
 		s+="atom_modify"+d+self.atom_modify+"\n"
 		s+="\n"
 		s+="read_data"+d+self.read_data+"\n"
@@ -211,12 +211,14 @@ class LammpsScript:
 			s+="pair_coeff"+d+p+"\n"
 		for p in self.pairmod:
 			s+="pair_modify"+d+p+"\n"
-		s+="velocity"+d+self.velocity+"\n"
+		
 		s+="dump"+d+self.dump+"\n"
 
 		for g in self.groups:
 			s+="group"+d+g+"\n"
 
+		s+="velocity move create 1.0 1\n"
+		s+="velocity protein set 0 -4 0\n"
 		i=0
 		for f in self.fixes:
 			s+="fix"+d+str(i)+" "+f+"\n"
