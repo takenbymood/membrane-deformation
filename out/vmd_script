@@ -1,13 +1,17 @@
 display depthcue off 
 display projection orthographic
+set sel_M [atomselect top "all"]
+$sel_M set radius 2.0
+set sel_M [atomselect top "element H"]
+$sel_M set radius 0.5
+set sel_M [atomselect top "element He"]
+$sel_M set radius 0.5
+set sel_M [atomselect top "element Li"]
+$sel_M set radius 4.0
 
-set sel [atomselect top "all"]
-$sel set radius 10.0
-set core [atomselect top type “3”]
-$core set radius 100.0
 
   mol delrep 0 top 
-  mol representation VDW 0.1 20 
+  mol representation VDW 1 20 
   mol color Name 
   mol selection "all" 
   mol material Opaque 
