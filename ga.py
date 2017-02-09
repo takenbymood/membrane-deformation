@@ -9,6 +9,8 @@ import os
 import fileinput
 import time
 
+import signal
+
 from deap import base
 from deap import creator
 from deap import tools
@@ -37,6 +39,9 @@ def kill(p):
         p.kill()
     except OSError:
         pass # ignore
+
+def exit(signal, frame):
+        os._exit(1)
 
 class Ligand:
 	def __init__(self,eps,sig,rad,ang,mass=0.01,cutoff=2.5):
@@ -79,7 +84,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=8,ljEpsPlaces=4,ljSigmaPlaces=1,ligRadPlaces=1,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
+	def __init__(self,genes=12,ljEpsPlaces=4,ljSigmaPlaces=1,ligRadPlaces=1,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -102,6 +107,7 @@ class Genome:
 		self.invMaxAngle = 1.0/(2**ligAngPlaces)
 		self.invMaxEps = 1.0/(2**ljEpsPlaces)
 		self.invMaxSig = 1.0/(2**ljSigmaPlaces)	
+		self.pop = []
 
 	def constructProtein(self,individual):
 		p = Protein()
@@ -147,6 +153,14 @@ class Algorithm:
 
 		self.maxFit = 1E20
 
+	def interrupt(self,signal,frame):
+		print("quitting early -- exporting results so far, please be patient")
+		print self.hof
+		self.writeHOF()
+		self.writePop(self.pop)
+		self.writeProteins(self.pop)
+		exit()
+
 	def crossover(self,ind1,ind2):
 		pos = random.randint(1,self.genome.genes)
 		pos2 = random.randint(pos,self.genome.genes)
@@ -188,7 +202,7 @@ class Algorithm:
 		path = dir_path+"/"+sim.filedir
 		try:
 			proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > lammps.out",shell=True)
-			t = Timer(60, kill, [proc])
+			t = Timer(45, kill, [proc])
 			t.start()
 			proc.wait()
 			t.cancel()
@@ -285,9 +299,42 @@ class Algorithm:
 	def clnum(self,l):
 		return len(rmcase(l,(self.maxFit,)))
 
+	def writeHOF(self):
+		tag=1
+		with open("out/"+self.stamp+"/hof.out", 'w') as file_:
+			for i in self.hof:
+				p = self.genome.constructProtein(i)
+				file_.write(str(i))
+				file_.write(str(p))
+				num = grayToNumber(i)
+				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=self.runtime,dumpres="100")
+				sim.filedir = "out/"+self.stamp+"/"
+				sim.saveFiles()
+				dir_path = os.path.dirname(os.path.realpath(__file__))
+				path = dir_path+"/"+sim.filedir
+				proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
+				proc.wait()
+				tag+=1
+
+	def writePop(self,pop):
+		with open("out/"+self.stamp+"/pop.out", 'w') as file_:
+			for i in pop:
+				file_.write(str(i))
+				file_.write("\n")
+
+	def writeProteins(self,pop):
+		with open("out/"+self.stamp+"/proteins.out", 'w') as file_:
+			for i in pop:
+				p = self.genome.constructProtein(i)
+				file_.write(str(p))
+				file_.write("\n")
+
+
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
 
-		pop = self.toolbox.population(n=popSize)
+		self.pop = self.toolbox.population(n=popSize)
+
+		signal.signal(signal.SIGINT, self.interrupt)
 		
 		os.mkdir("out/"+self.stamp)
 		self.logfile = None
@@ -307,36 +354,18 @@ class Algorithm:
 			orig_stdout = sys.stdout
 			sys.stdout = self.logfile
 
-		algorithms.eaSimple(pop, self.toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=self.stats,
+		algorithms.eaSimple(self.pop, self.toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=self.stats,
                         halloffame=self.hof, verbose=True)
 
 		if(log):
 			sys.stdout = orig_stdout
 			self.logfile.close()
 
-		tag=1
-		with open("out/"+self.stamp+"/hof.out", 'w') as file_:
-			for i in self.hof:
-				p = self.genome.constructProtein(i)
-				file_.write(str(i))
-				file_.write(str(p))
-				num = grayToNumber(i)
-				sim = MembraneSimulation("hof_"+str(tag),p,"",str(self.stamp),run=self.runtime,dumpres="100")
-				sim.filedir = "out/"+self.stamp+"/"
-				sim.saveFiles()
-				dir_path = os.path.dirname(os.path.realpath(__file__))
-				path = dir_path+"/"+sim.filedir
-				proc = subprocess.Popen("cd "+ path + " && lammps -in "+sim.scriptName+" > hoflog.out",shell=True)
-				proc.wait()
-				tag+=1
+		self.writeHOF(self.pop)
+		self.writePop(self.pop)
 
-		with open("out/"+self.stamp+"/pop.out", 'w') as file_:
-			for i in pop:
-				p = self.genome.constructProtein(i)
-				file_.write(str(i))
-				file_.write(str(p))
 
-		return pop
+		return self.pop
 
 
 
@@ -399,7 +428,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 			aType+=1
 		
 		self.script.addPair(1,3,100,4.5,5.0)
-		self.script.addPair(1,1,100,0.5,0.551)
+		self.script.addPair(1,1,100,1.0,1.2246)
 		self.script.addPair(1,2,100,1,1.1)
 		self.script.addPairModify("shift yes")
 
@@ -420,7 +449,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 def main():
 	state = State()
 	state.registerInstance(Genome(),0.2)
-	p = state.run(10,0.5,0.2,2,False)
+	p = state.run(50,0.5,0.2,80,False)
 	
 if __name__ == "__main__":
 	main()
