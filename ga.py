@@ -1,4 +1,5 @@
 import random
+import string
 
 import numpy as np
 import math
@@ -24,7 +25,12 @@ flatten = lambda l: [item for sublist in l for item in sublist]
 partition = lambda l,s : [l[x:x+s] for x in xrange(0, len(l), s)]
 rmcase = lambda l,n: [x for x in l if not (x==n)]
 
+def randomStr(N): 
+	return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
+
 def grayToNumber(g):
+	if len(g)==0:
+		return 0 
 	b=[g[0]]
 	for i in range(len(g)-1):
 		b.append(b[i]^g[i+1])
@@ -84,7 +90,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=12,ljEpsPlaces=4,ljSigmaPlaces=1,ligRadPlaces=1,ligAngPlaces=6,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=8,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -149,17 +155,19 @@ class Algorithm:
 
 		self.hof = tools.HallOfFame(hofSize)
 
-		self.stamp = str(int(math.floor(time.time())))
+		self.stamp = str(int(math.floor(time.time()))) + "_" + str(self.genome.genes)
 
 		self.maxFit = 1E20
 
+		self.novelGenes = {}
+
 	def interrupt(self,signal,frame):
 		print("quitting early -- exporting results so far, please be patient")
-		print self.hof
 		self.writeHOF()
 		self.writePop(self.pop)
 		self.writeProteins(self.pop)
-		exit()
+		self.writeNovelGenes()
+		exit(signal,frame)
 
 	def crossover(self,ind1,ind2):
 		pos = random.randint(1,self.genome.genes)
@@ -299,6 +307,22 @@ class Algorithm:
 	def clnum(self,l):
 		return len(rmcase(l,(self.maxFit,)))
 
+	def findNovelGenes(self,l):
+		gen = len(self.novelGenes)
+		self.novelGenes[gen] = []
+		num = 0
+		for i in self.pop:
+			genes = partition(i,self.genome.geneSize)
+			for g in genes:
+				novel = True
+				for key, value in self.novelGenes.iteritems():
+					if g in value:
+						novel = False
+				if novel:
+					num+=1
+					self.novelGenes[gen].append(g)
+		return num
+
 	def writeHOF(self):
 		tag=1
 		with open("out/"+self.stamp+"/hof.out", 'w') as file_:
@@ -319,7 +343,7 @@ class Algorithm:
 	def writePop(self,pop):
 		with open("out/"+self.stamp+"/pop.out", 'w') as file_:
 			for i in pop:
-				file_.write(str(i))
+				file_.write(str(partition(i,self.genome.geneSize)))
 				file_.write("\n")
 
 	def writeProteins(self,pop):
@@ -328,6 +352,15 @@ class Algorithm:
 				p = self.genome.constructProtein(i)
 				file_.write(str(p))
 				file_.write("\n")
+
+
+	def writeNovelGenes(self):
+		with open("out/"+self.stamp+"/novelty.out", 'w') as file_:
+			for key, value in self.novelGenes.iteritems():
+				for v in value:
+					file_.write(str(key)+","+str(v))
+					file_.write("\n")
+				
 
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
@@ -349,6 +382,7 @@ class Algorithm:
 		self.stats.register("Std", self.clstd)
 		self.stats.register("Min", self.clmin)
 		self.stats.register("Max", self.clmax)
+		self.stats.register("Novelty", self.findNovelGenes)
 
 		if(log):
 			orig_stdout = sys.stdout
@@ -361,8 +395,9 @@ class Algorithm:
 			sys.stdout = orig_stdout
 			self.logfile.close()
 
-		self.writeHOF(self.pop)
+		self.writeHOF()
 		self.writePop(self.pop)
+		self.writeNovelGenes()
 
 
 		return self.pop
@@ -417,7 +452,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
-		self.script.addBond(1,10.0,1.3)
+		self.script.addBond(1,5.0,1.3)
 		self.script.addAngle(1,40,180)
 		self.script.addPair("*","*",0,0,0)
 
@@ -448,8 +483,10 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 def main():
 	state = State()
-	state.registerInstance(Genome(),0.2)
-	p = state.run(50,0.5,0.2,80,False)
+	for i in range(4):
+		gNum = (i+1)*6
+		state.registerInstance(Genome(genes=gNum),0.1)
+	p = state.run(30,0.5,0.2,30,False)
 	
 if __name__ == "__main__":
 	main()
