@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 # example data
 data = np.genfromtxt(args.filepath, delimiter='	', skip_header=2,
-                     skip_footer=0, names=['GEN','N','NV','AVG', 'STD','MIN','MAX'])
+                     skip_footer=0, names=['GEN','N','NV','AVG', 'STD','MIN','MAX','NOV'])
 
 x = data['GEN']
 yorig = data['AVG']

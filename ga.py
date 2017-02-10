@@ -395,8 +395,8 @@ class Algorithm:
 		with open("out/"+self.stamp+"/"+filename+"_freq.out", 'w') as file_:
 			file_.write("genecode, frequency, origin \n")
 			for key, value in popGeneFrequency.iteritems():
-				if key in popGeneFrequency:
-					file_.write(str(key)+","+str(value)+","+str(popGeneFrequency[key])+"\n")
+				if key in popGeneOrigin	:
+					file_.write(str(key)+","+str(value)+","+str(popGeneOrigin[key])+"\n")
 
 
 	def writeNovelGenes(self):
@@ -510,8 +510,8 @@ class MembraneSimulation(lb.LammpsSimulation):
 			aType+=1
 		
 		self.script.addPair(1,3,100,4.5,5.0)
-		self.script.addPair(1,1,100,1.0,1.2246)
-		self.script.addPair(1,2,100,1,1.1)
+		self.script.addPair(1,1,100,1.0,1.12246)
+		self.script.addPair(1,2,100,1.0,1.12246)
 		self.script.addPairModify("shift yes")
 
 		self.script.addGroup("move",[1])
