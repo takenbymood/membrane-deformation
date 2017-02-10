@@ -444,6 +444,7 @@ class Algorithm:
 
 		self.writeHOF()
 		self.writePop(self.pop)
+		self.writeProteins(self.pop)
 		self.writeNovelGenes()
 
 
@@ -530,10 +531,10 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 def main():
 	state = State()
-	for i in range(4):
-		gNum = (i+1)*6
+	for i in range(5):
+		gNum = (i+1)*4
 		state.registerInstance(Genome(genes=gNum),0.25)
-	p = state.run(30,0.5,0.2,30,False)
+	p = state.run(30,0.5,0.2,50,False)
 	
 if __name__ == "__main__":
 	main()
