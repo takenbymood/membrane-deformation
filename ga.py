@@ -134,7 +134,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.2,hofSize=10,runtime=250000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=250000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -144,7 +144,7 @@ class Algorithm:
 		self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
 		self.toolbox.register("mate", self.mate)
-		self.toolbox.register("mutate",tools.mutFlipBit,indpb=mutationRate)
+		self.toolbox.register("mutate",self.mutate,indpb=mutationRate)
 		self.toolbox.register("crossover",self.crossover)
 		self.toolbox.register("select", tools.selTournament, tournsize=4)
 		self.toolbox.register("evaluate", self.evaluate)
@@ -162,7 +162,7 @@ class Algorithm:
 		self.novelGenes = {}
 
 	def interrupt(self,signal,frame):
-		print("quitting early -- exporting results so far, please be patient")
+		print("\nquitting early -- exporting results so far, please be patient")
 		self.writeHOF()
 		self.writePop(self.pop)
 		self.writeProteins(self.pop)
@@ -189,6 +189,15 @@ class Algorithm:
 		ind4 = flatten(bp1+ap2+bp3)
 
 		return ind3,ind4
+
+	def mutate(self,individual,indpb):
+		for g in xrange(self.genome.genes):
+			if random.random() < 0.33:
+				for i in xrange(self.genome.geneSize):
+					if random.random() < indpb:
+						b = g*self.genome.geneSize+i
+						individual[b] = type(individual[b])(not individual[b])
+		return individual,
 
 	def mate(self,ind1,ind2):
 		child1, child2 = [self.toolbox.clone(ind) for ind in (ind1, ind2)]
@@ -353,6 +362,42 @@ class Algorithm:
 				file_.write(str(p))
 				file_.write("\n")
 
+	def writeGeneRetention(self,pop,filename):
+
+		popGeneFrequency = {}
+		popGeneOrigin = {}
+		with open("out/"+self.stamp+"/"+filename+"_retention.out", 'w') as file_:
+			ind = 0
+			file_.write("individual")
+			gNum = 1
+			for s in range(self.genome.genes):
+				file_.write(", "+str(gNum))
+				gNum+=1
+			file_.write("\n")
+			for i in pop:
+				file_.write(str(ind))
+				genes = partition(i,self.genome.geneSize)
+				for g in genes:
+					geneid = grayToNumber(g)
+					if not geneid in popGeneFrequency:
+						popGeneFrequency[geneid] = 1
+					else:
+						popGeneFrequency[geneid] += 1
+
+					for key, value in self.novelGenes.iteritems():
+						if g in value:
+							file_.write(", "+str(key))
+							if not geneid in popGeneOrigin:
+								popGeneOrigin[geneid] = key
+				ind+=1
+				file_.write("\n")
+
+		with open("out/"+self.stamp+"/"+filename+"_freq.out", 'w') as file_:
+			file_.write("genecode, frequency, origin \n")
+			for key, value in popGeneFrequency.iteritems():
+				if key in popGeneFrequency:
+					file_.write(str(key)+","+str(value)+","+str(popGeneFrequency[key])+"\n")
+
 
 	def writeNovelGenes(self):
 		with open("out/"+self.stamp+"/novelty.out", 'w') as file_:
@@ -360,7 +405,9 @@ class Algorithm:
 				for v in value:
 					file_.write(str(key)+","+str(v))
 					file_.write("\n")
-				
+
+		self.writeGeneRetention(self.pop,"pop")
+		self.writeGeneRetention(self.hof,"hof")
 
 
 	def run(self,popSize=100,CXPB=0.5,MUTPB=0.2,NGEN=100,log=True):
@@ -452,8 +499,8 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
-		self.script.addBond(1,5.0,1.3)
-		self.script.addAngle(1,40,180)
+		self.script.addBond(1,2.0,1.3)
+		self.script.addAngle(1,30,180)
 		self.script.addPair("*","*",0,0,0)
 
 		aType = 4
@@ -485,7 +532,7 @@ def main():
 	state = State()
 	for i in range(4):
 		gNum = (i+1)*6
-		state.registerInstance(Genome(genes=gNum),0.1)
+		state.registerInstance(Genome(genes=gNum),0.25)
 	p = state.run(30,0.5,0.2,30,False)
 	
 if __name__ == "__main__":
