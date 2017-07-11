@@ -78,6 +78,19 @@ class Protein:
 		if(isinstance(ligand,Ligand)):
 			self.ligands.append(ligand)
 
+	def spaceIsOccupied(self,targetAngle):
+		for l in self.ligands:
+			if targetAngle == l.ang:
+				return True
+		return False
+
+	def findNearestSpace(self,targetAngle,spacing):
+		freeSpace = targetAngle
+		if self.spaceIsOccupied(targetAngle):
+			return(self.findNearestSpace(targetAngle+float(random.randint(0,2)-1)*spacing,spacing))
+		else:
+			return freeSpace
+
 	def __str__(self):
 		protstr = "x:"+str(self.x)+", y:"+str(self.y)+", m:"+str(self.mass)
 		protstr += ", eps:"+str(self.eps)+", sig:"+str(self.sig)+", cut:"+str(self.cutoff)
@@ -90,7 +103,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=8,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=5,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -127,6 +140,11 @@ class Genome:
 			rad = grayToNumber(individual[gStart:gEnd])*self.invMaxRad*(self.maxRadius-self.minRadius)+self.minRadius
 			gStart,gEnd = gEnd+1,gEnd + 1 + self.ligAngPlaces
 			ang = grayToNumber(individual[gStart:gEnd])*self.invMaxAngle*(self.maxAngle-self.minAngle)+self.minAngle
+
+			#check for overlapping ligands
+
+			ang = p.findNearestSpace(ang,float(self.invMaxAngle*(self.maxAngle-self.minAngle)))
+
 			p.addLigand(Ligand(eps,sig,rad,ang))
 
 		return p
@@ -134,7 +152,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=250000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=400000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -474,7 +492,7 @@ class State:
 
 class MembraneSimulation(lb.LammpsSimulation):
 
-	def __init__(self,name,protein,outdir,filedir,mLength=120,spacing=1.3,corepos_x=0, corepos_y=10,run="200000",dumpres="100"):
+	def __init__(self,name,protein,outdir,filedir,mLength=120,spacing=1.3,corepos_x=0, corepos_y=10,run="400000",dumpres="100"):
 		lb.LammpsSimulation.__init__(self,name,"out/",run=run)
 		self.script.dump = "id all xyz "+dumpres+" "+outdir+name +"_out.xyz"
 		self.data.atomTypes = 3+len(protein.ligands)
@@ -534,7 +552,7 @@ def main():
 	for i in range(5):
 		gNum = (i+1)*4
 		state.registerInstance(Genome(genes=gNum),0.25)
-	p = state.run(30,0.5,0.2,50,False)
+	p = state.run(40,0.5,0.2,50,False)
 	
 if __name__ == "__main__":
 	main()
