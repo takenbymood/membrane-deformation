@@ -70,6 +70,21 @@ class LammpsData:
 		self.masses = []
 		self.angles = []
 
+	def addXyzFile(self,filename):
+		nAtoms = 0
+		startId = len(self.atoms)
+		if os.path.exists(filename):
+			with open(filename, 'rb') as f:
+				try:
+					content = f.readlines()
+					for l in content:
+						atomData = l.replace('\n','').split(' ')
+						nAtoms+=1
+						self.addAtom(int(atomData[0]),float(atomData[1]),float(atomData[2]),float(atomData[3]))
+				except : 
+					print(str(filename) + " does not exist")
+		return (startId,nAtoms)
+
 	def addAtom(self,atomType,x,y,z=0,moleculeId=-1):
 		atomId = len(self.atoms)+1
 		if(moleculeId == -1):
@@ -162,7 +177,7 @@ class LammpsScript:
 	def addLine(self,line):
 		self.lines.append(str(line))
 
-	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.001",run="100000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 2.5"):
+	def __init__(self,read_data="",dump="id all xyz 100 out.xyz",thermo="300",timestep="0.005",run="100000",dimension="2",units="lj",velocity="all create 1.0 1000",atom_style="molecular",atom_modify="sort 0 1",neighbour="0.3 bin",neigh_modify="every 1 delay 1",angle_style="harmonic",bond_style="harmonic",pair_style="lj/cut 5.04"):
 		self.read_data = read_data
 		self.dump = dump
 		self.dimension = dimension
@@ -191,7 +206,7 @@ class LammpsScript:
 		s="dimension"+d+self.dimension+"\n"
 		s+="units"+d+self.units+"\n"
 		s+="atom_style"+d+self.atom_style+"\n"
-		s+="boundary f f p\n"
+		s+="boundary p p p\n"
 		s+="atom_modify"+d+self.atom_modify+"\n"
 		s+="\n"
 		s+="read_data"+d+self.read_data+"\n"
@@ -218,7 +233,7 @@ class LammpsScript:
 			s+="group"+d+g+"\n"
 
 		s+="velocity move create 1.0 1\n"
-		s+="velocity protein set 0 -4 0\n"
+		s+="velocity protein set 0 -10 0\n"
 		i=0
 		for f in self.fixes:
 			s+="fix"+d+str(i)+" "+f+"\n"

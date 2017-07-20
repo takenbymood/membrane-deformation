@@ -103,7 +103,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=5,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=4,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -152,7 +152,7 @@ class Genome:
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=400000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=600000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -506,19 +506,31 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 		startX = -(0.5*mLength*spacing)
 
-		self.data.addAtom(2,startX,0)
+		# self.data.addAtom(2,startX,0)
 
-		for i in range(mLength-2):
-			self.data.addAtom(1,startX+spacing*i+2,0)
-			self.data.addBond(1,i+1,i+2)
-			self.data.addAngle(1,i+1,i+2,i+3)
+		# for i in range(mLength-2):
+		# 	self.data.addAtom(1,startX+spacing*i+2,0)
+		# 	self.data.addBond(1,i+1,i+2)
+		# 	self.data.addAngle(1,i+1,i+2,i+3)
 
-		self.data.addAtom(2,startX+spacing*mLength,0)
-		self.data.addBond(1,mLength-1,mLength)
+		# self.data.addAtom(2,startX+spacing*mLength,0)
+
+		#self.data.addBond(1,mLength-1,mLength)
+
+		a = self.data.addXyzFile(sys.path[0] + "/relaxed-membrane.xyz")
+
+		for i in range(2,a[1]+1):
+			pAtom = a[0]+i
+			self.data.addBond(1,pAtom-1,pAtom)
+
+		for i in range(3,a[1]+1):
+			pAtom = a[0]+i
+			self.data.addAngle(1,pAtom-2,pAtom-1,pAtom)
+
 
 		mol = self.data.addAtom(3,corepos_x,corepos_y,0)
 
-		self.script.addBond(1,2.0,1.3)
+		self.script.addBond(1,30,1.3)
 		self.script.addAngle(1,30,180)
 		self.script.addPair("*","*",0,0,0)
 
@@ -540,19 +552,22 @@ class MembraneSimulation(lb.LammpsSimulation):
 			pGroup.append(i+4)
 		self.script.addGroup("protein",pGroup)
 		self.script.addFix("all","enforce2d")
-		self.script.addFix("move","nve")
+		self.script.addFix("move","nph x 0.0 0.0 1.0 y 0.0 0.0 1.0 couple none")
 		self.script.addFix("protein","rigid/nve molecule")
 		self.script.addFix("all","langevin 1 1 1 1000")
 		
-		self.script.addLine("fix 4 all wall/lj93 yhi 18 1.0 1.0 1.12")
+		#self.script.addLine("fix 4 all wall/lj93 yhi 18 1.0 1.0 1.12")
+
+		#print(str(self.script))
+
 		
 
 def main():
 	state = State()
-	for i in range(5):
+	for i in range(3):
 		gNum = (i+1)*4
 		state.registerInstance(Genome(genes=gNum),0.25)
-	p = state.run(40,0.5,0.2,50,False)
+	p = state.run(3,0.5,0.2,5,False)
 	
 if __name__ == "__main__":
 	main()
