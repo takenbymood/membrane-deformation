@@ -80,7 +80,7 @@ class Protein:
 
 	def spaceIsOccupied(self,targetAngle):
 		for l in self.ligands:
-			if targetAngle == l.ang:
+			if targetAngle < l.ang + 0.64 and targetAngle > l.ang - 0.64:
 				return True
 		return False
 
@@ -103,7 +103,7 @@ class Protein:
 
 class Genome:
 
-	def __init__(self,genes=6,ljEpsPlaces=6,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=4,maxRadius=4,maxEps=10,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=2,minSigma=1.5,minAngle=0):
+	def __init__(self,genes=6,ljEpsPlaces=7,ljSigmaPlaces=0,ligRadPlaces=0,ligAngPlaces=7,maxRadius=4,maxEps=12,maxSigma=1.5,maxAngle=6.283185,minRadius=4,minEps=1,minSigma=1.5,minAngle=0):
 		self.ljEpsPlaces = ljEpsPlaces
 		self.ljSigmaPlaces = ljSigmaPlaces
 		self.ligRadPlaces = ligRadPlaces
@@ -143,16 +143,17 @@ class Genome:
 
 			#check for overlapping ligands
 
-			ang = p.findNearestSpace(ang,float(self.invMaxAngle*(self.maxAngle-self.minAngle)))
+			#ang = p.findNearestSpace(ang,float(self.invMaxAngle*(self.maxAngle-self.minAngle)))
 
-			p.addLigand(Ligand(eps,sig,rad,ang))
+			if not p.spaceIsOccupied(ang):
+				p.addLigand(Ligand(eps,sig,rad,ang))
 
 		return p
 
 
 class Algorithm:
 
-	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=600000):
+	def __init__(self,genome=Genome(),mutationRate=0.1,hofSize=10,runtime=450000):
 
 		self.genome = genome
 		self.toolbox = base.Toolbox()
@@ -502,7 +503,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 		self.data.addMass(2,1)
 		self.data.addMass(3,3)
 		for i in range(len(protein.ligands)):
-			self.data.addMass(4+i,0.01)
+			self.data.addMass(4+i,1)
 
 		startX = -(0.5*mLength*spacing)
 
@@ -552,7 +553,7 @@ class MembraneSimulation(lb.LammpsSimulation):
 			pGroup.append(i+4)
 		self.script.addGroup("protein",pGroup)
 		self.script.addFix("all","enforce2d")
-		self.script.addFix("move","nph x 0.0 0.0 1.0 y 0.0 0.0 1.0 couple none")
+		self.script.addFix("move","nph x 0.0 0.0 1.0 y 0.0 0.0 1.0 couple xy")
 		self.script.addFix("protein","rigid/nve molecule")
 		self.script.addFix("all","langevin 1 1 1 1000")
 		
@@ -564,10 +565,10 @@ class MembraneSimulation(lb.LammpsSimulation):
 
 def main():
 	state = State()
-	for i in range(3):
+	for i in range(5):
 		gNum = (i+1)*4
 		state.registerInstance(Genome(genes=gNum),0.25)
-	p = state.run(3,0.5,0.2,5,False)
+	p = state.run(50,0.5,0.2,50,False)
 	
 if __name__ == "__main__":
 	main()

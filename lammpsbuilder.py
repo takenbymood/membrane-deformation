@@ -55,7 +55,7 @@ class LammpsMass:
 class LammpsData:
 
 
-	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-50,yhi=50,zlo=-50,zhi=50):
+	def __init__(self,atomTypes=0,bondTypes=0,angleTypes=0,xlo=-200,xhi=200,ylo=-50,yhi=50,zlo=-1,zhi=1):
 		self.atomTypes = atomTypes
 		self.bondTypes = bondTypes
 		self.angleTypes = angleTypes
@@ -233,7 +233,7 @@ class LammpsScript:
 			s+="group"+d+g+"\n"
 
 		s+="velocity move create 1.0 1\n"
-		s+="velocity protein set 0 -10 0\n"
+		s+="velocity protein set 0 -1 0\n"
 		i=0
 		for f in self.fixes:
 			s+="fix"+d+str(i)+" "+f+"\n"
